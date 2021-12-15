@@ -12,7 +12,7 @@ import ResizableSquare from "./components/ResizableSquare";
 function App() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
-  const ref = useRef(null);
+  const boxRef = useRef(null);
 
   let detector;
 
@@ -53,15 +53,15 @@ function App() {
       const hands = await detector.estimateHands(video);
 
       if (hands.length > 0) {
-        ref.current.style.width = `${
-          getDistanceBetweenThumbAndFinger(hands[0].keypoints) * 2
-        }px`;
+        const pinchDistance =
+          getDistanceBetweenThumbAndFinger(hands[0].keypoints) * 2;
 
-        ref.current.style.height = `${
-          getDistanceBetweenThumbAndFinger(hands[0].keypoints) * 2
-        }px`;
+        //  set box size based on distance between thumb and index finger
+        boxRef.current.style.width = `${pinchDistance}px`;
+        boxRef.current.style.height = `${pinchDistance}px`;
 
-        ref.current.style.transform = `rotate(
+        //  rotate box based on x axis of index finger
+        boxRef.current.style.transform = `rotate(
           ${getRotationAngle(hands[0].keypoints) / 2}deg
         )`;
 
@@ -111,7 +111,7 @@ function App() {
           marginTop: "20%",
         }}
       >
-        <ResizableSquare ref={ref} />
+        <ResizableSquare ref={boxRef} />
       </div>
     </div>
   );
