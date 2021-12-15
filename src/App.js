@@ -1,34 +1,35 @@
-// 1. Install dependencies DONE
-// 2. Import dependencies DONE
-// 3. Setup webcam and canvas DONE
-// 4. Define references to those DONE
-// 5. Load handpose DONE
-// 6. Detect function DONE
-// 7. Drawing utilities DONE
-// 8. Draw functions DONE
-
 import React, { useRef } from "react";
-// import logo from './logo.svg';
-import * as tf from "@tensorflow/tfjs";
-import * as handpose from "@tensorflow-models/handpose";
+import * as handPoseDetection from "@tensorflow-models/hand-pose-detection";
+import "@tensorflow/tfjs-backend-webgl";
 import Webcam from "react-webcam";
-import "./App.css";
-import { drawHand } from "./utilities";
+import {
+  drawKeypoints,
+  getDistanceBetweenThumbAndFinger,
+  getRotationAngle,
+} from "./utilities";
+import ResizableSquare from "./components/ResizableSquare";
 
 function App() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
+  const ref = useRef(null);
 
-  const runHandpose = async () => {
-    const net = await handpose.load();
-    console.log("Handpose model loaded.");
-    //  Loop and detect hands
+  let detector;
+
+  const createDetector = async () => {
+    const model = handPoseDetection.SupportedModels.MediaPipeHands;
+    const detectorConfig = {
+      runtime: "tfjs",
+      modelType: "full",
+      maxHands: 1,
+    };
+    detector = await handPoseDetection.createDetector(model, detectorConfig);
     setInterval(() => {
-      detect(net);
-    }, 100);
+      detect();
+    }, 30);
   };
 
-  const detect = async (net) => {
+  const detect = async () => {
     // Check data is available
     if (
       typeof webcamRef.current !== "undefined" &&
@@ -49,50 +50,69 @@ function App() {
       canvasRef.current.height = videoHeight;
 
       // Make Detections
-      const hand = await net.estimateHands(video);
-      console.log(hand);
+      const hands = await detector.estimateHands(video);
 
-      // Draw mesh
-      const ctx = canvasRef.current.getContext("2d");
-      drawHand(hand, ctx);
+      if (hands.length > 0) {
+        ref.current.style.width = `${
+          getDistanceBetweenThumbAndFinger(hands[0].keypoints) * 2
+        }px`;
+
+        ref.current.style.height = `${
+          getDistanceBetweenThumbAndFinger(hands[0].keypoints) * 2
+        }px`;
+
+        ref.current.style.transform = `rotate(
+          ${getRotationAngle(hands[0].keypoints) / 2}deg
+        )`;
+
+        // Draw mesh
+        const ctx = canvasRef.current.getContext("2d");
+
+        requestAnimationFrame(() => {
+          drawKeypoints(hands[0].keypoints, ctx, canvasRef.current);
+        });
+      }
     }
   };
 
-  runHandpose();
+  createDetector();
 
   return (
     <div className="App">
-      <header className="App-header">
-        <Webcam
-          ref={webcamRef}
-          style={{
-            position: "absolute",
-            marginLeft: "auto",
-            marginRight: "auto",
-            left: 0,
-            right: 0,
-            textAlign: "center",
-            zindex: 9,
-            width: 640,
-            height: 480,
-          }}
-        />
+      <Webcam
+        ref={webcamRef}
+        style={{
+          position: "absolute",
+          top: 40,
+          right: 0,
+          textAlign: "center",
+          zindex: 9,
+          width: 340,
+          height: 180,
+        }}
+      />
 
-        <canvas
-          ref={canvasRef}
-          style={{
-            position: "absolute",
-            marginLeft: "auto",
-            marginRight: "auto",
-            left: 0,
-            right: 0,
-            textAlign: "center",
-            zindex: 9,
-            width: 640,
-            height: 480,
-          }}
-        />
-      </header>
+      <canvas
+        ref={canvasRef}
+        style={{
+          position: "absolute",
+          top: 40,
+          right: 0,
+          textAlign: "center",
+          zindex: 9,
+          width: 340,
+          height: 180,
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          marginTop: "20%",
+        }}
+      >
+        <ResizableSquare ref={ref} />
+      </div>
     </div>
   );
 }
